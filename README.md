@@ -1,69 +1,72 @@
-# Introduction
-We have developed a distributed sensor network generating a continuous stream of measurements published to an MQTT broker.  Connection to MQTT broker can be established at an IP address shared in a message from a recruiter at port 32760. When establishing a connection, client must authorize using a client id, which was also shared. TLS and client-side certificates are not required.
-Each node publishes a persistent topic to __\<node>/\<id>/state/active__ that can be used to inspect available nodes.
-Each sensor may also be configured remotely using the same communication medium.  
-As MQTT is not designed for a request-response model, this functionality is provided on an application level.
-set operation for write or execute access (__\<node>/\<id>/set/\<parameter_path>__).
-get operation for read access (__\<node>/\<id>/get/\<parameter_path>__).
-state endpoints for value change notifications (__\<node>/\<id>/state/\<parameter_path>__).
-Access to non-existent parameter does not yield a response.  Setting a parameter generates a state notification with its current value. Out of range values should be discarded. Once enabled, the measurements are streamed to __\<node>/\<id>/stream/\<sensor_type>__ topics periodically.
+# Recruitment task
+## 1 Description
+A sensor network streaming measurements to MQTT server needs functional tests. As MQTT does not support standard request and response communication, it is provided on application level. Set and get operations can be achieved by publishing to corresponding topic ie.:
+```
+SUB node/id/state/#
+PUB node/id/get/name
+PUB node/id/set/temperature/unit
+```
+Tests will be written in Python, test specification is available in both .MD and .docx and test report will be generated in .html via pytest plugin or built-in pytest xml generator, specified at test launching.
 
-**Read example**  
+## 2 Code
+### 2.1 MQTT communication
+Communication with MQTT server was implemented with gmqtt library, because it natively supports asynchronous communication. To handle messages coming from the server, callback methods had to be implemented. Messages are handled by on_message method and saved in asyncio queue. 
+```
+class MQTT_callbacks:
+	 messages = asyncio.Queue()
 
-SUB variant_a/12/state/#  
--> PUB variant_a/12/get/name  
-<- PUB variant_a/12/state/name 'Bill'  
+	def on_connect(self, client, flags, rc, properties):
+		print("Connected")
 
-**Write example - enable streaming**  
+	async def on_message(self, client, topic, payload, qos, properties):
+		await self.messages.put(payload)
 
-SUB variant_a/12/state/#  
-SUB variant_a/12/stream/#  
--> PUB variant_a/12/set/temperature/sample_rate 2  
-<- PUB variant_a/12/state/temperature/sample_rate 2  
-<- PUB variant_a/12/stream/temperature "35.6"  
-<- PUB variant_a/12/stream/temperature "35.6"  
-<- PUB variant_a/12/stream/temperature "35.8"  
+	def on_disconnect(self, client, packet, exc=None):
+		print("Disconnected")
 
-# Goal
+```
+To communicate with server a **gmqtt.Client** was set up with server credentials in class **MQTTCommunication**. Server credentials were saved in **MQTT_info.py** as a dictionary variable **MQTTinfo**. This file needs to be created in project root directory with exactly the same structure and name, for the communication with the server to be established. **MQTTCommunication** class extends **gmqtt.Client.publish()** and **.subscribe()** methods to simplify communication and read/write process. 
 
-Your goal is to prepare a test specification, a suite of automated functional tests implemented in Python, and a test report.
-Warning Each node implements the same API and functionality, but runs slightly different software. Every node must be tested.
+**MQTTCommunication** implements custom methods to handle subscribing and publishing to topics as well as handling returning messages. 
+`def SubToNode(self, topic)` is used to subscribe to topic. It returns received response which is a single message.
+`def SubToStream(self, topic, message_count)` is used to subscribe to stream on topic. It periodically prints messages. The amount of received messages is set by message_count. 
+`def publishSet(self, topic, parameter)` is used to write parameter to topic, i.e. set unit to Celcius.
+`def publishGet(self, topic)` is used to read data from topic, i.e. get average temperature.
 
-# Device documentation
+### 2.2 Tests
+Tests were based on written test specification. They were written in pytest with pytest_asyncio and pytest-html plugins. Because the communication with MQTT server is asynchronous, tests also had to be asynchronous, hence the need to encapsulate them in class and providing them with fixture containing connection to server. This had to be done this way, because all nodes present on server had to be tested and creating a new connection for each test, for each node is very bad practise. The fixture connection exist during testing session and is disposed of afterwards. For that it was marked with **@pytest_asyncio.fixture(scope=”session”)** Every test using that connection needs to be marked with **@pytest.mark.asyncio(loop_scope=”session”)**. Because of the requirement for all nodes to be tested, tests were parametrized. This was done by marking all tests with **@pytest.mark.paramtetrize(parameter, parameters_list)**. Report generation is done with either pytest-html plugin or built in report generator. Depending on which argument is used when running pytest:
+`--html=Test_Report.html --self-contained-html`
+or
+`--junit-xml="Test_Report.xml"`
 
-## Measurement streams
+## 3 Setup & running
+Project requires Python 3.14+ and pip to run. Clone the repository and run:
 
-Device supports three measurement streams. Updates are sent periodically with a frequency configured through associated 'sample_rate' parameter.
+`pip install requirements.txt`
 
-| Name  | Data format | Description |
-|-------|-------------|-------------|
-| temperature	| String with floating point number | Temperature in Celcius/Fahrenheit/Kelvin.  |
-| pressure	| Binary: 	                            | Pressure in Pa/Bar/psi. | 
-|           | Timestamp: uint32_t                   | Measurements include a UNIX timestamp. |
-|           | Pressure: float32                     | All values are little-endian           |
-| orientation | JSON:                               | Node orientation (Euler angles). |
-|             | timestamp: uint32_t                 | Measurements include a UNIX timestamp and accuraccy. |
-|             | yaw: float                          |  |
-|             | pitch: float                        |  |
-|             | roll: float                         |  |
-|             | accuracy: float                     |  |
+To connect with server a file MQTT_info.py has to be created at project root directory. It should contain a dict variable as shown below. The elements should be configured with proper credentials. That file is not shared in repository on purpose.
+```
+MQTTInfo = {
+	"IP": "",
+	"port": ,
+	"login": "",
+	"passwd": "",
+}
+```
 
+To run tests open terminal in project root directory and run:
 
-## Configuration
+`python -m pytest --html=Test_Report.html --self-contained-html`
 
-**All parameters are encoded as text strings.**
- 
-| Name | Access | Data format | Range | Description |
-|------|--------|-------------|-------|-------------|
-| name |	R |	String | 5-16 alphanumeric characters	| Name of the device. |
-| temperature/sample_rate | RW | Integer | 0-5	| Temperature sensor sampling rate in seconds. Send 0 to disable the measurement stream. |
-| temperature/unit |	RW | String | Celcius/Fahrenheit/Kelvin |	Unit used by the temperature measurement stream. |
-| temperature/average |	R | String | Celcius/Fahrenheit/Kelvin |	The average temperature, can be treated as constant. |
-| pressure/sample_rate | RW | Integer | 0-50 | Temperature sensor sampling rate in seconds. Send 0 to disable the measurement stream. |
-| pressure/unit | RW | String | Pa/Bar/psi | Unit used by the pressure measurement stream |
-| pressure/average | R | float32 | Pa/Bar/psi | The average pressure, can be treated as constant. |
-| orientation/sample_rate | RW | Integer | 0-100 | Orientation sensor sampling rate in seconds. Send 0 to disable the measurement stream. |
-| orientation/unit | RW | String | deg/Rad | Unit used by the orientation measurement stream. |
-| orientation/average | R | See orientation measurement stream | deg/Rad | The average pressure, can be treated as constant. |
-| active | R | Boolean | false/true | Persistent message signifying the presence of node. |
+or
 
+`python -m pytest --junit-xml="Test_Report.xml"`
+
+depending if the test report should be generated in HTML or XML. Report will be generated in project root directory.
+
+## 4 To do
+```
+- remaining tests with parametrization
+- edge case coverage
+- stream handling
+```
