@@ -28,9 +28,13 @@ class MQTT_callbacks:
 To communicate with server a **gmqtt.Client** was set up with server credentials in class **MQTTCommunication**. Server credentials were saved in **MQTT_info.py** as a dictionary variable **MQTTinfo**. This file needs to be created in project root directory with exactly the same structure and name, for the communication with the server to be established. **MQTTCommunication** class extends **gmqtt.Client.publish()** and **.subscribe()** methods to simplify communication and read/write process. 
 
 **MQTTCommunication** implements custom methods to handle subscribing and publishing to topics as well as handling returning messages. 
+
 `def SubToNode(self, topic)` is used to subscribe to topic. It returns received response which is a single message.
+
 `def SubToStream(self, topic, message_count)` is used to subscribe to stream on topic. It periodically prints messages. The amount of received messages is set by message_count. 
+
 `def publishSet(self, topic, parameter)` is used to write parameter to topic, i.e. set unit to Celcius.
+
 `def publishGet(self, topic)` is used to read data from topic, i.e. get average temperature.
 
 ### 2.2 Tests
