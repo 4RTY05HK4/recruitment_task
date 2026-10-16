@@ -1,5 +1,7 @@
 
 MQTT_info.py
+*.docx
+*.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -221,3 +223,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+Task_description.md
