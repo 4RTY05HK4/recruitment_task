@@ -68,9 +68,16 @@ or
 
 depending if the test report should be generated in HTML or XML. Report will be generated in project root directory.
 
-## 4 To do
+## 4 Known issues
+```
+- If a node is being tested for too long, wrong values can be returned from queue, making tests fail assertions
+- Nodes commented in nodes.py require individual tests
+```
+
+## 5 To do
 ```
 - remaining tests with parametrization
+- individual tests of problematic nodes
 - edge case coverage
 - stream handling
 ```

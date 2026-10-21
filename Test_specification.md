@@ -8,14 +8,15 @@ Each sensor apart from broadcasting measurement data, broadcasts it's current st
 
 ### Tested node structure
 
+```
 node  
-&emsp;|– id
-&emsp;&emsp;&ensp;|– name
-&emsp;&emsp;&ensp;|- state
-&emsp;&emsp;&ensp;|- temperature
-&emsp;&emsp;&ensp;|- pressure  
-&emsp;&emsp;&ensp;|- orientation
-
+  |- id
+	 |- name
+ 	 |- state
+	 |- temperature
+	 |- pressure  
+	 |- orientation
+```
 ---
 ### name & state
 

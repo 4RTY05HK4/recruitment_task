@@ -6,7 +6,7 @@ from MQTT_info import MQTTInfo
 
 
 class MQTTcallbacks:
-    messages = asyncio.Queue()
+    messages = asyncio.Queue(maxsize=1)
 
     def on_connect(self, client, flags, rc, properties):
         print("Connected")
@@ -31,11 +31,8 @@ class MQTTCommunication:
 
     async def subToNode(self, topic):
         self.client.subscribe(topic)
-        msg_count = 0
-        while msg_count < 1:
-            message = await self.callbacks.messages.get()
-            msg_count += 1
-            return message
+        message = await self.callbacks.messages.get()
+        return message
 
     async def subToStream(self, topic, message_count):
         self.client.subscribe(topic)
@@ -47,16 +44,10 @@ class MQTTCommunication:
 
     async def publishSet(self, topic, parameter):
         self.client.publish(topic, parameter)
-        msg_count = 0
-        while msg_count < 1:
-            message = await self.callbacks.messages.get()
-            msg_count += 1
-            return message
+        message = await self.callbacks.messages.get()
+        return message
 
     async def publishGet(self, topic):
         self.client.publish(topic)
-        msg_count = 0
-        while msg_count < 1:
-            message = await self.callbacks.messages.get()
-            msg_count += 1
-            return message
+        message = await self.callbacks.messages.get()
+        return message
